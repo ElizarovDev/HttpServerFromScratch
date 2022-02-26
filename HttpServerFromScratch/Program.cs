@@ -10,7 +10,7 @@ namespace HttpServerFromScratch
     {
         static async Task Main(string[] args)
         {
-            var server = new ServerHost(new StaticFileHander(Path.Combine(Environment.CurrentDirectory ,"www")));
+            var server = new ServerHost(new ControllersHandler(typeof(Program).Assembly));
 
             await server.Start();
         }

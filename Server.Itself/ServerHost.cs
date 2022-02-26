@@ -1,4 +1,5 @@
 ﻿using Server.Itself.Handlers;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -23,8 +24,12 @@ namespace Server.Itself
             {
                 var client = await listener.AcceptTcpClientAsync();
 
-                using var stream = client.GetStream();
-                await handler.HandleAsync(stream);
+                using var networkStream = client.GetStream();
+                using var reader = new StreamReader(networkStream);
+
+                var firstLine = await reader.ReadLineAsync();
+                var request = RequestParser.Parse(firstLine);
+                await handler.HandleAsync(networkStream, request);
 
             }
         }

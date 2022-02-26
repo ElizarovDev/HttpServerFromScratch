@@ -5,6 +5,6 @@ namespace Server.Itself.Handlers
 {
     public interface IHandler
     {
-        Task HandleAsync(Stream stream);
+        Task HandleAsync(Stream stream, Request request);
     }
 }

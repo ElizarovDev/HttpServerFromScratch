@@ -11,13 +11,10 @@ namespace Server.Itself.Handlers
         {
             this.path = path;
         }
-        public async Task HandleAsync(Stream networkStream)
+        public async Task HandleAsync(Stream networkStream, Request request)
         {
-            using var reader = new StreamReader(networkStream);
-            using var writer = new StreamWriter(networkStream);
-
-            var firstLine = await reader.ReadLineAsync();
-            var request = RequestParser.Parse(firstLine);
+            //using var reader = new StreamReader(networkStream);
+            //using var writer = new StreamWriter(networkStream);
 
             var filePath = Path.Combine(path, request.Path);
             if (!File.Exists(filePath))
