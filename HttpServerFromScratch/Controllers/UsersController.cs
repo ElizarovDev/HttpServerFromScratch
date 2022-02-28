@@ -1,4 +1,6 @@
 ﻿using Server.Itself.Handlers;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace HttpServerFromScratch.Controllers
 {
@@ -8,7 +10,19 @@ namespace HttpServerFromScratch.Controllers
     {
         public User[] Index()
         {
+            Thread.Sleep(5);
             return new User[] 
+            {
+                new User("q", "w", "e"),
+                new User("a", "s", "d"),
+                new User("z", "x", "c")
+            };
+        }
+
+        public async Task<User[]> IndexAsync()
+        {
+            await Task.Delay(5);
+            return new User[]
             {
                 new User("q", "w", "e"),
                 new User("a", "s", "d"),

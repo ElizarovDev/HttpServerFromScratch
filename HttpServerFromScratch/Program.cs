@@ -12,7 +12,7 @@ namespace HttpServerFromScratch
         {
             var server = new ServerHost(new ControllersHandler(typeof(Program).Assembly));
 
-            await server.Start();
+            await server.StartAsync();
         }
     }
 }

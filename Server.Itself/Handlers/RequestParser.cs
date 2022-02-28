@@ -7,7 +7,7 @@ namespace Server.Itself.Handlers
         public static Request Parse(string header)
         {
             var split = header.Split(" ");
-            return new Request(split[1].Trim('/'), GetMethod(split[0]));
+            return new Request(split[1], GetMethod(split[0]));
         }
 
         private static HttpMethod GetMethod(string methodName)

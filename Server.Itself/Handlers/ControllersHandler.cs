@@ -15,12 +15,15 @@ namespace Server.Itself.Handlers
         public ControllersHandler(Assembly controllersAssembly)
         {
             _routes = controllersAssembly.GetTypes()
-                .Where(t => t.IsAssignableTo(typeof(IController)))
-                .SelectMany(c => c.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-                    .Select(x => new { ControllerType = c, Method = x }))
-                .ToDictionary(
-                key => GetPath(key.ControllerType, key.Method),
-                value => GetEndpointMethod(value.ControllerType, value.Method));
+                .Where(x => typeof(IController).IsAssignableFrom(x))
+                .SelectMany(Controller => Controller.GetMethods().Select(Method => new {
+                    Controller,
+                    Method
+                })
+                ).ToDictionary(
+                    key => GetPath(key.Controller, key.Method),
+                    value => GetEndpointMethod(value.Controller, value.Method)
+                );
         }
 
         private Func<object> GetEndpointMethod(Type controllerType, MethodInfo method)
@@ -30,29 +33,33 @@ namespace Server.Itself.Handlers
 
         private string GetPath(Type controllerType, MethodInfo method)
         {
-            var name = controllerType.Name;
+            string name = controllerType.Name;
             if (name.EndsWith("controller", StringComparison.InvariantCultureIgnoreCase))
-            {
                 name = name.Substring(0, name.Length - "controller".Length);
-            }
-
             if (method.Name.Equals("Index", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return $"/{name}";
-            }
-            return $"/{name}/{method.Name}";
+                return "/" + name;
+            return "/" + name + "/" + method.Name;
         }
 
         public async Task HandleAsync(Stream networkStream, Request request)
         {
             if (!_routes.TryGetValue(request.Path, out var func))
-            {
-                await ResponseWriter.WriteStatusToStream(networkStream, System.Net.HttpStatusCode.NotFound);
-            }
+                await ResponseWriter.WriteStatusToStreamAsync(networkStream, System.Net.HttpStatusCode.NotFound);
             else
             {
-                await ResponseWriter.WriteStatusToStream(networkStream, System.Net.HttpStatusCode.OK);
+                await ResponseWriter.WriteStatusToStreamAsync(networkStream, System.Net.HttpStatusCode.OK);
                 await WriteControllerResponseAsync(func(), networkStream);
+            }
+        }
+
+        public void Handle(Stream networkStream, Request request)
+        {
+            if (!_routes.TryGetValue(request.Path, out var func))
+                ResponseWriter.WriteStatusToStream(networkStream, System.Net.HttpStatusCode.NotFound);
+            else
+            {
+                ResponseWriter.WriteStatusToStream(networkStream, System.Net.HttpStatusCode.OK);
+                WriteControllerReponse(func(), networkStream);
             }
         }
 
@@ -60,16 +67,38 @@ namespace Server.Itself.Handlers
         {
             if (response is string str)
             {
-                using var writer = new StreamWriter(networkStream);
-                await writer.WriteAsync(str);
+                using var writer = new StreamWriter(networkStream, leaveOpen: true);
+                writer.Write(str);
             }
-            else if(response is byte[] buffer)
+            else if (response is byte[] buffer)
             {
-                await networkStream.WriteAsync(buffer, 0, buffer.Length);
+                networkStream.Write(buffer, 0, buffer.Length);
+            }
+            else if (response is Task task)
+            {
+                await task;
+                await WriteControllerResponseAsync(task.GetType().GetProperty("Result").GetValue(task), networkStream);
             }
             else
             {
                 await WriteControllerResponseAsync(JsonConvert.SerializeObject(response), networkStream);
+            }
+        }
+
+        private void WriteControllerReponse(object response, Stream stream)
+        {
+            if (response is string str)
+            {
+                using var writer = new StreamWriter(stream, leaveOpen: true);
+                writer.Write(str);
+            }
+            else if (response is byte[] buffer)
+            {
+                stream.Write(buffer, 0, buffer.Length);
+            }
+            else
+            {
+                WriteControllerReponse(JsonConvert.SerializeObject(response), stream);
             }
         }
     }
