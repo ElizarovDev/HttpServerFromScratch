@@ -53,7 +53,7 @@ namespace Server.Itself
             while (true)
             {
                 var client = await listner.AcceptTcpClientAsync();
-                await ProcessClientAsync(client);
+                var _ = ProcessClientAsync(client);
             }
         }
 

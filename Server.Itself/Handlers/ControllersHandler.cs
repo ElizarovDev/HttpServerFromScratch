@@ -1,10 +1,10 @@
 ﻿using Newtonsoft.Json;
+using Server.Itself.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Server.Itself.Handlers
@@ -12,11 +12,14 @@ namespace Server.Itself.Handlers
     public class ControllersHandler : IHandler
     {
         private readonly Dictionary<string, Func<object>> _routes;
+        private readonly IInstanceCreator _creator;
+        private readonly ITaskResultExtractor _extractor;
         public ControllersHandler(Assembly controllersAssembly)
         {
             _routes = controllersAssembly.GetTypes()
                 .Where(x => typeof(IController).IsAssignableFrom(x))
-                .SelectMany(Controller => Controller.GetMethods().Select(Method => new {
+                .SelectMany(Controller => Controller.GetMethods().Select(Method => new
+                {
                     Controller,
                     Method
                 })
@@ -24,11 +27,18 @@ namespace Server.Itself.Handlers
                     key => GetPath(key.Controller, key.Method),
                     value => GetEndpointMethod(value.Controller, value.Method)
                 );
+            _creator = new ReflectionCreator();
+            _extractor = new ReflectionExtractor();
         }
+
+        //private Func<object> GetEndpointMethod(Type controllerType, MethodInfo method)
+        //{
+        //    return () => method.Invoke(Activator.CreateInstance(controllerType), Array.Empty<object>());
+        //}
 
         private Func<object> GetEndpointMethod(Type controllerType, MethodInfo method)
         {
-            return () => method.Invoke(Activator.CreateInstance(controllerType), Array.Empty<object>());
+            return () => method.Invoke(_creator.Create(controllerType), Array.Empty<object>());
         }
 
         private string GetPath(Type controllerType, MethodInfo method)
@@ -77,7 +87,8 @@ namespace Server.Itself.Handlers
             else if (response is Task task)
             {
                 await task;
-                await WriteControllerResponseAsync(task.GetType().GetProperty("Result").GetValue(task), networkStream);
+               // await WriteControllerResponseAsync(task.GetType().GetProperty("Result").GetValue(task), networkStream);
+                await WriteControllerResponseAsync(_extractor.Extract(task), networkStream);
             }
             else
             {
